@@ -2,11 +2,11 @@
 the sanic extension
 """
 
-import logging
-import six
-import sys
 import inspect
+import logging
+import sys
 
+import six
 from limits.errors import ConfigurationError
 from limits.storage import storage_from_string
 from limits.strategies import STRATEGIES
@@ -151,10 +151,10 @@ class Limiter(object):
 
     def __check_request_limit(self, request):
         endpoint = request.path or ""
-        view_handler = self.app.router.routes_static.get(endpoint, None)
+        view_handler = request.app.router.get(request.path, request.method, request.host)
         if view_handler is None:
             return
-        view_func = view_handler.handler
+        view_func = view_handler[1]
         view_bpname = view_func.__dict__.get('__blueprintname__', None)
         name = ("{}.{}".format(view_func.__module__, view_func.__name__) if view_func else "")
         if (not endpoint
