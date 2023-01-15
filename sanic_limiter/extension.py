@@ -156,7 +156,10 @@ class Limiter(object):
             return
         view_func = view_handler[1]
         view_bpname = view_func.__dict__.get('__blueprintname__', None)
-        name = ("{}.{}".format(view_func.__module__, view_func.__name__) if view_func else "")
+        try:
+            name = ("{}.{}".format(view_func.__module__, view_func.__name__) if view_func else "")
+        except AttributeError:
+            name = ("{}.{}".format(view_func.func.__module__, view_func.func.__name__) if view_func else "")
         if (not endpoint
             or not self.enabled
             or name in self._exempt_routes
