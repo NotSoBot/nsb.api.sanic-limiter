@@ -156,11 +156,8 @@ class Limiter(object):
             return
         view_func = view_handler[1]
         view_bpname = view_func.__dict__.get('__blueprintname__', None)
-        if view_func:
-            try:
-                view_func.__module__
-            except AttributeError:
-                view_func = view_func.func
+        if hasattr(view_func, "func"):
+            view_func = view_func.func
         name = ("{}.{}".format(view_func.__module__, view_func.__name__) if view_func else "")
         if (not endpoint
             or not self.enabled
