@@ -7,7 +7,7 @@ import logging
 import sys
 
 from sanic import Sanic, Request
-from typing import Any, Awaitable, Callable, Optional, Union, cast
+from typing import Any, Awaitable, Callable, Optional, Type, Union, cast
 
 import six
 
@@ -39,22 +39,22 @@ class ContextVariables:
 
 executable_key_function = Union[
     Callable[[], Union[Awaitable[str], str]],
-    Callable[[Request], Union[Awaitable[str], str]],
+    Callable[[Any], Union[Awaitable[str], str]],
 ]
 
 executable_error_message = Union[
     Callable[[], Union[Awaitable[str], str]],
-    Callable[[Request], Union[Awaitable[str], str]],
+    Callable[[Any], Union[Awaitable[str], str]],
 ]
 
 executable_exempt_when_function = Union[
     Callable[[], Union[Awaitable[bool], bool]],
-    Callable[[Request], Union[Awaitable[bool], bool]],
+    Callable[[Any], Union[Awaitable[bool], bool]],
 ]
 
 executable_request_filter_function = Union[
     Callable[[], Union[Awaitable[bool], bool]],
-    Callable[[Request], Union[Awaitable[bool], bool]],
+    Callable[[Any], Union[Awaitable[bool], bool]],
 ]
 
 class ExtLimit(object):

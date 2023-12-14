@@ -6,11 +6,9 @@ import inspect
 
 from typing import Any, Callable
 
-from sanic import Request
 
 
-
-def get_remote_address(request: Request) -> str:
+def get_remote_address(request: Any) -> str:
     """
     :param: request: request object of sanic
     :return: the ip address of given request (or 127.0.0.1 if none found)
@@ -23,7 +21,7 @@ def get_remote_address(request: Request) -> str:
         return request.ip
 
 
-async def execute_callback_with_request(callback: Callable, request: Request) -> Any:
+async def execute_callback_with_request(callback: Callable, request: Any) -> Any:
     if not callable(callback):
         raise ValueError('callback is not callable')
 
