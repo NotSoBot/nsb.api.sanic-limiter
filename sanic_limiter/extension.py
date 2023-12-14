@@ -38,13 +38,13 @@ class ContextVariables:
 
 
 executable_key_function = Union[
-    Callable[[], Union[Awaitable[str], str]],
-    Callable[[Any], Union[Awaitable[str], str]],
+    Callable[[], Union[Awaitable[Union[str, None]], Union[str, None]]],
+    Callable[[Any], Union[Awaitable[Union[str, None]], Union[str, None]]],
 ]
 
 executable_error_message = Union[
-    Callable[[], Union[Awaitable[str], str]],
-    Callable[[Any], Union[Awaitable[str], str]],
+    Callable[[], Union[Awaitable[Union[str, None]], Union[str, None]]],
+    Callable[[Any], Union[Awaitable[Union[str, None]], Union[str, None]]],
 ]
 
 executable_exempt_when_function = Union[
