@@ -24,5 +24,9 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Software Development :: Libraries :: Python Modules',
-    ]
+    ],
+    package_data={
+        'sanic_limiter': ['py.typed'],
+    },
+    include_package_data=True,
 )
