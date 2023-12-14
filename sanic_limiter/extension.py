@@ -192,7 +192,8 @@ class Limiter(object):
         return self._strategy_should_be_async
 
     async def __check_request_limit(self, request: Request) -> None:
-        ratelimits_hit: list[tuple[RateLimitItem, WindowStats]] = request.ctx.setdefault(ContextVariables.RATELIMITS_HIT, [])
+        ratelimits_hit: list[tuple[RateLimitItem, WindowStats]] = []
+        cast(Any, request.ctx)[ContextVariables.RATELIMITS_HIT] = ratelimits_hit
 
         endpoint = request.path or ''
         view_handler = request.app.router.get(request.path, request.method, request.host)
