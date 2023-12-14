@@ -4,7 +4,7 @@
 
 import inspect
 
-from typing import Callback
+from typing import Any, Callable
 
 from sanic import Request
 
@@ -28,7 +28,7 @@ async def execute_callback_with_request(callback: Callable, request: Request) ->
         raise ValueError('callback is not callable')
 
     args = []
-    func_parameters = inspect.signature(callback).parameters.values()
+    func_parameters = list(inspect.signature(callback).parameters.values())
     if func_parameters and func_parameters[0].default is inspect.Parameter.empty:
         args.append(request)
 

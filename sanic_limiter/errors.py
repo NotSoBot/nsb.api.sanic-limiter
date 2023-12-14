@@ -3,9 +3,10 @@ errors and exceptions
 """
 from typing import Optional
 
+from limits import RateLimitItem
 from sanic.exceptions import SanicException
 
-from extension import ExtLimit
+from .extension import ExtLimit
 
 
 class RateLimitExceeded(SanicException):
@@ -14,7 +15,7 @@ class RateLimitExceeded(SanicException):
     def __init__(
         self,
         message: Optional[str] = None,
-        failed_limits: Optional[list[ExtLimit]] = None,
+        failed_limits: Optional[list[RateLimitItem]] = None,
     ):
         message = message or 'too many requests'
         super().__init__(message)

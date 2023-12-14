@@ -11,10 +11,11 @@ from typing import Any, Awaitable, Callable, Optional, Union, cast
 
 import six
 
-from limits import RateLimitItem
+from limits import RateLimitItem, WindowStats
+from limits.aio.storage import Storage as StorageAIO
 from limits.aio.strategies import STRATEGIES as STRATEGIES_AIO
 from limits.errors import ConfigurationError
-from limits.storage import storage_from_string
+from limits.storage import Storage, storage_from_string
 from limits.strategies import STRATEGIES
 from limits.util import parse_many
 from sanic.blueprints import Blueprint
@@ -63,7 +64,7 @@ class ExtLimit(object):
 
     def __init__(
         self,
-        item: Union[RateLimitItem, Callable[[], [str]]],
+        item: Union[RateLimitItem, Callable[[], str]],
         key_func: executable_key_function,
         scope: Optional[str] = None,
         per_method: bool = False,
@@ -71,14 +72,14 @@ class ExtLimit(object):
         error_message: Optional[Union[str, executable_error_message]] = None,
         exempt_when: Optional[executable_exempt_when_function] = None,
     ):
-        self.limit: Union[RatelimitItem, None] = None
-        self._dynamic_limit: Union[Callable[[], [str]], None] = None
+        self.limit: Union[RateLimitItem, None] = None
+        self._dynamic_limit: Union[Callable[[], str], None] = None
         self._scope = scope
 
-        if callable(limit):
-            self._dynamic_limit = limit
+        if callable(item):
+            self._dynamic_limit = item
         else:
-            self.limit = limit
+            self.limit = item
 
         self.key_func = key_func
         self.per_method = per_method
@@ -119,7 +120,7 @@ class Limiter(object):
 
         self.enabled = True
         self._global_limits: list[ExtLimit] = []
-        self._exempt_routes: set[string] = set()
+        self._exempt_routes: set[str] = set()
         self._request_filters: list[executable_request_filter_function]= []
         self._strategy = strategy
         self._strategy_should_be_async = strategy_async
@@ -128,8 +129,8 @@ class Limiter(object):
         self._swallow_errors = swallow_errors
 
         self._key_func = key_func or get_remote_address
-        for str in global_limits:
-            limits = [ExtLimit(x, self._key_func) for x in parse_many(limit)]
+        for string in global_limits:
+            limits = [ExtLimit(x, self._key_func) for x in parse_many(string)]
             self._global_limits.extend(limits)
 
         self._dynamic_route_limits: dict[str, list[ExtLimit]] = {}
@@ -137,7 +138,7 @@ class Limiter(object):
         self._blueprint_limits: dict[str, list[ExtLimit]] = {}
         self._route_limits: dict[str, list[ExtLimit]] = {}
 
-        self._storage = None
+        self._storage: Union[Storage, StorageAIO, None] = None
         self._limiter = None
         self._storage_dead = False
 
@@ -169,9 +170,9 @@ class Limiter(object):
         self._storage = storage_from_string(storage_string, **self._storage_options)
 
         strategy = self._strategy or app.config.setdefault(ConfigVariables.STRATEGY, 'fixed-window')
-        strategies = AIO_STRATEGIES if self._strategy_should_be_async else STRATEGIES
+        strategies = cast(dict, STRATEGIES_AIO if self._strategy_should_be_async else STRATEGIES)
         if strategy not in strategies:
-            raise ConfigurationError(f'Invalid rate limiting strategy {strategy}')'
+            raise ConfigurationError(f'Invalid rate limiting strategy {strategy}')
 
         self._limiter = strategies[strategy](self._storage)
 
@@ -190,8 +191,8 @@ class Limiter(object):
     def limiter_is_async(self):
         return self._strategy_should_be_async
 
-    async def __check_request_limit(self, request: Request) -> void:
-        request.ctx[ContextVariables.RATELIMITS_HIT]: list[tuple[RatelimitItem, WindowStats]] = []
+    async def __check_request_limit(self, request: Request) -> None:
+        ratelimits_hit: list[tuple[RateLimitItem, WindowStats]] = request.ctx.setdefault(ContextVariables.RATELIMITS_HIT, [])
 
         endpoint = request.path or ''
         view_handler = request.app.router.get(request.path, request.method, request.host)
@@ -204,13 +205,14 @@ class Limiter(object):
             view_func = view_func.func
 
         name = ''
-        if view_func:
+        if cast(Any, view_func):
             name = f'{view_func.__module__}.{view_func.__name__}'
 
-        if (not endpoint or not self.enabled or name in self._exempt_routes or any(fn() for fn in self._request_filters)):
+        if not endpoint or not self.enabled or name in self._exempt_routes:
             return
 
-        if any(await execute_callback_with_request(fn, request) for fn in self._request_filters):
+        filters = [await execute_callback_with_request(fn, request) for fn in self._request_filters]
+        if any(filters):
             return
 
         limits = self._route_limits.get(name, [])
@@ -256,14 +258,13 @@ class Limiter(object):
                             )
                             dynamic_limits.append(dynamic_limit)
 
-                    except ValueError as e:
+                    except ValueError as error:
                         self.logger.error(f'failed to load ratelimit for view blueprint {view_bpname} {error}')
 
             if view_bpname in self._blueprint_limits and not limits:
                 limits.extend(self._blueprint_limits[view_bpname])
 
         failed_limits: list[ExtLimit] = []
-        ratelimits_hit: list[RatelimitItem] = []
         try:
             for limit in (limits + dynamic_limits or self._global_limits):
                 scope = limit.scope or endpoint
@@ -288,7 +289,7 @@ class Limiter(object):
                     succeeded = await execute_callback(self.limiter.hit, limit.limit, key, scope)
 
                     stats = await execute_callback(self.limiter.get_window_stats, limit.limit, key, scope)
-                    request.ctx[ContextVariables.RATELIMITS_HIT].append((limit.limit, stats))
+                    ratelimits_hit.append((limit.limit, stats))
                     if not succeeded:
                         self.logger.warning(f'ratelimit {limit.limit} ({key}) exceeded at endpoint: {scope}')
                         failed_limits.append(limit)
@@ -307,9 +308,12 @@ class Limiter(object):
                         description = six.text_type(failed_limit.limit)
                 else:
                     description = 'Multiple Ratelimits Exceeded'
-                raise RateLimitExceeded(description, failed_limits=[cast(RatelimitItem, x.limit) for x in failed_limits])
+                raise RateLimitExceeded(
+                    description,
+                    failed_limits=[cast(RateLimitItem, x.limit) for x in failed_limits],
+                )
         except Exception as error:
-            if isinstance(e, RateLimitExceeded):
+            if isinstance(error, RateLimitExceeded):
                 six.reraise(*sys.exc_info())
 
             if self._swallow_errors:
