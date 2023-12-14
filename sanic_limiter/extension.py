@@ -195,7 +195,7 @@ class Limiter(object):
         ratelimits_hit: list[tuple[str, str, RateLimitItem, WindowStats]] = []
         request.ctx.RATELIMITS_HIT = ratelimits_hit
 
-        endpoint = request.path or ''
+        endpoint = (request.route and request.route.path) or request.path or ''
         view_handler = request.app.router.get(request.path, request.method, request.host)
         if view_handler is None:
             return
