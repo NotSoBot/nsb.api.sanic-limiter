@@ -1,5 +1,7 @@
-from setuptools import setup
 import os
+
+from setuptools import setup
+
 
 this_dir = os.path.abspath(os.path.dirname(__file__))
 REQUIREMENTS = filter(None, open(
@@ -7,8 +9,8 @@ REQUIREMENTS = filter(None, open(
 
 setup(
     name='sanic_limiter',
-    version='0.1.4',
-    description='Provides rate limiting features for Sanic. Supports in-memory, redis and memcache as storage.',
+    version='0.2.0',
+    description='Provides rate limiting features for Sanic. Supports async in-memory, redis and memcache as storage.',
     url='https://github.com/bohea/sanic-limiter',
     author='bohea',
     author_email='libin375@163.com',
