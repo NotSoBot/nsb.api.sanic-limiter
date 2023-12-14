@@ -2,8 +2,13 @@
 
 """
 
+import inspect
 
-def get_remote_address(request):
+from typing import Any, Callable
+
+
+
+def get_remote_address(request: Any) -> str:
     """
     :param: request: request object of sanic
     :return: the ip address of given request (or 127.0.0.1 if none found)
@@ -14,3 +19,25 @@ def get_remote_address(request):
         return request.remote_addr
     else:
         return request.ip
+
+
+async def execute_callback_with_request(callback: Callable, request: Any) -> Any:
+    if not callable(callback):
+        raise ValueError('callback is not callable')
+
+    args = []
+    func_parameters = list(inspect.signature(callback).parameters.values())
+    if func_parameters and func_parameters[0].default is inspect.Parameter.empty:
+        args.append(request)
+
+    return await execute_callback(callback, *args)
+
+
+async def execute_callback(callback: Callable, *args) -> Any:
+    if not callable(callback):
+        raise ValueError('callback is not callable')
+    
+    result = callback(*args)
+    if inspect.isawaitable(result):
+        result = await result
+    return result

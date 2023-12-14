@@ -48,7 +48,7 @@ Aboved demo provides:
 
 * build Limiter instance with giving sanic app and global_limits;
 * global_limits will be applied to all routes;
-* /t1 has its own limit rules(using decorator provides by limiter.limit) which will bypass the global_limits;
+* /t1 has its own limit rules (using decorator provides by limiter.limit) which will NOT bypass the global_limits;
 * /t2 uses global_limits;
 * /t3 will exempt from any global_limits;
 * all the rate limits are based on get_remote_address, you can customize yours;
