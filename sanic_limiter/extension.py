@@ -193,7 +193,7 @@ class Limiter(object):
 
     async def __check_request_limit(self, request: Request) -> None:
         ratelimits_hit: list[tuple[RateLimitItem, WindowStats]] = []
-        cast(Any, request.ctx)[ContextVariables.RATELIMITS_HIT] = ratelimits_hit
+        request.ctx.RATELIMITS_HIT = ratelimits_hit
 
         endpoint = request.path or ''
         view_handler = request.app.router.get(request.path, request.method, request.host)
