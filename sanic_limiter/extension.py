@@ -37,6 +37,9 @@ class ContextVariables:
     RATELIMITS_HIT = "RATELIMITS_HIT"
 
 
+GLOBAL_RATELIMIT_KEY = 'GLOBAL_RATELIMIT'
+
+
 executable_key_function = Union[
     Callable[[], Union[Awaitable[Union[str, None]], Union[str, None]]],
     Callable[[Any], Union[Awaitable[Union[str, None]], Union[str, None]]],
@@ -130,7 +133,7 @@ class Limiter(object):
 
         self._key_func = key_func or get_remote_address
         for string in global_limits:
-            limits = [ExtLimit(x, self._key_func) for x in parse_many(string)]
+            limits = [ExtLimit(x, self._key_func, scope=GLOBAL_RATELIMIT_KEY) for x in parse_many(string)]
             self._global_limits.extend(limits)
 
         self._dynamic_route_limits: dict[str, list[ExtLimit]] = {}
@@ -178,7 +181,7 @@ class Limiter(object):
 
         config_limits = app.config.get(ConfigVariables.GLOBAL_LIMITS, None)
         if not self._global_limits and config_limits:
-            limits = [ExtLimit(x, self._key_func) for x in parse_many(config_limits)]
+            limits = [ExtLimit(x, self._key_func, scope=GLOBAL_RATELIMIT_KEY) for x in parse_many(config_limits)]
             self._global_limits.extend(limits)
 
         app.request_middleware.append(self.__check_request_limit)
@@ -244,7 +247,7 @@ class Limiter(object):
                 for limit in self._blueprint_dynamic_limits[view_bpname]:
                     if not limit._dynamic_limit:
                         continue
-                    
+
                     limit_value = limit._dynamic_limit()
                     try:
                         for x in parse_many(limit_value):
@@ -267,7 +270,7 @@ class Limiter(object):
 
         failed_limits: list[tuple[str, str, ExtLimit]] = []
         try:
-            for limit in (limits + dynamic_limits or self._global_limits):
+            for limit in (limits + dynamic_limits + self._global_limits):
                 scope = limit.scope or endpoint
                 if callable(limit.exempt_when) and await execute_callback_with_request(limit.exempt_when, request):
                     return
