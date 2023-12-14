@@ -6,8 +6,6 @@ from typing import Optional
 from limits import RateLimitItem
 from sanic.exceptions import SanicException
 
-from .extension import ExtLimit
-
 
 class RateLimitExceeded(SanicException):
     status_code = 429
