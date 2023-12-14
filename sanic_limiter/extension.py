@@ -192,7 +192,7 @@ class Limiter(object):
         return self._strategy_should_be_async
 
     async def __check_request_limit(self, request: Request) -> None:
-        ratelimits_hit: list[tuple[RateLimitItem, WindowStats]] = []
+        ratelimits_hit: list[tuple[str, str, RateLimitItem, WindowStats]] = []
         request.ctx.RATELIMITS_HIT = ratelimits_hit
 
         endpoint = request.path or ''
@@ -265,7 +265,7 @@ class Limiter(object):
             if view_bpname in self._blueprint_limits and not limits:
                 limits.extend(self._blueprint_limits[view_bpname])
 
-        failed_limits: list[ExtLimit] = []
+        failed_limits: list[tuple[str, str, ExtLimit]] = []
         try:
             for limit in (limits + dynamic_limits or self._global_limits):
                 scope = limit.scope or endpoint
@@ -290,28 +290,28 @@ class Limiter(object):
                     succeeded = await execute_callback(self.limiter.hit, limit.limit, key, scope)
 
                     stats = await execute_callback(self.limiter.get_window_stats, limit.limit, key, scope)
-                    ratelimits_hit.append((limit.limit, stats))
+                    ratelimits_hit.append((scope, key, limit.limit, stats))
                     if not succeeded:
                         self.logger.warning(f'ratelimit {limit.limit} ({key}) exceeded at endpoint: {scope}')
-                        failed_limits.append(limit)
+                        failed_limits.append((scope, key, limit))
 
             if failed_limits:
                 description = 'Ratelimit Exceeded'
                 if len(failed_limits) == 1:
-                    failed_limit = failed_limits[0]
-                    if failed_limit.error_message:
+                    scope, key, item = failed_limits[0]
+                    if item.error_message:
                         description = ''
-                        if callable(failed_limit.error_message):
-                            description = await execute_callback_with_request(failed_limit.error_message, request)
+                        if callable(item.error_message):
+                            description = await execute_callback_with_request(item.error_message, request)
                         else:
-                            description = failed_limit.error_message
-                    elif failed_limit.limit:
-                        description = six.text_type(failed_limit.limit)
+                            description = item.error_message
+                    elif item.limit:
+                        description = six.text_type(item.limit)
                 else:
                     description = 'Multiple Ratelimits Exceeded'
                 raise RateLimitExceeded(
                     description,
-                    failed_limits=[cast(RateLimitItem, x.limit) for x in failed_limits],
+                    failed_limits=[(scope, key, cast(RateLimitItem, item.limit)) for scope, key, item in failed_limits],
                 )
         except Exception as error:
             if isinstance(error, RateLimitExceeded):

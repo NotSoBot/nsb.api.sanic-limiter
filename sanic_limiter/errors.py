@@ -13,7 +13,7 @@ class RateLimitExceeded(SanicException):
     def __init__(
         self,
         message: Optional[str] = None,
-        failed_limits: Optional[list[RateLimitItem]] = None,
+        failed_limits: Optional[list[tuple[str, str, RateLimitItem]]] = None,
     ):
         message = message or 'too many requests'
         super().__init__(message)
